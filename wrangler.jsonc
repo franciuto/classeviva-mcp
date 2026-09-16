@@ -1,0 +1,60 @@
+/**
+ * ClasseViva MCP server — Cloudflare Workers.
+ *
+ * Identity comes from a Cloudflare Access for SaaS (OIDC) application; this Worker
+ * is an OAuth server to MCP clients and an OAuth client to Access.
+ *
+ * Secrets (never put these in this file):
+ *   npx wrangler secret put ACCESS_CLIENT_ID
+ *   npx wrangler secret put ACCESS_CLIENT_SECRET
+ *   npx wrangler secret put ACCESS_AUTHORIZATION_URL
+ *   npx wrangler secret put ACCESS_TOKEN_URL
+ *   npx wrangler secret put ACCESS_JWKS_URL
+ *   npx wrangler secret put COOKIE_ENCRYPTION_KEY   # openssl rand -hex 32
+ *   npx wrangler secret put LINK_SIGNING_KEY        # openssl rand -hex 32
+ *   npx wrangler secret put CLASSEVIVA_ID
+ *   npx wrangler secret put CLASSEVIVA_PASSWORD
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "classeviva-mcp",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-16",
+	// `global_fetch_strictly_public` enables CIMD in workers-oauth-provider.
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+
+	"kv_namespaces": [
+		{
+			// npx wrangler kv namespace create OAUTH_KV
+			"binding": "OAUTH_KV",
+			"id": "<run: npx wrangler kv namespace create OAUTH_KV>"
+		}
+	],
+
+	// The access gate. Not a secret, but it is the only thing between your
+	// public URL and the register. Empty denies everyone.
+	"vars": {
+		// Who may use the server, once Access has established who they are.
+		// Empty denies everyone. Changing it needs a redeploy — it is a var.
+		"ALLOWED_EMAILS": "you@example.com",
+		// Your custom domain, for Host-header validation. Leave it out when
+		// deploying to *.workers.dev, which is allowed by default.
+		"PUBLIC_HOSTNAME": "mcp.example.com",
+		// Path the MCP endpoint is served at. Change the value if you like;
+		// leave the key — most forks can leave this alone.
+		"MCP_ROUTE": "/classeviva"
+	},
+
+	"routes": [
+		{
+			"pattern": "mcp.example.com",
+			"custom_domain": true
+		}
+	],
+
+	// Workers AI, used only by `read_attachment` to turn a notice PDF into text.
+	"ai": { "binding": "AI" },
+
+	"observability": { "enabled": true },
+	"dev": { "port": 8788 }
+}
